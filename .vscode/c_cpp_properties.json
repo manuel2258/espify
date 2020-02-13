@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "includePath": [
+                "${config:idf.espIdfPath}/components/**"
+            ],
+            "browse": {
+                "path": [
+                    "${config:idf.espIdfPath}/components"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "compilerPath": "/usr/bin/clang++",
+            "intelliSenseMode": "clang-x86"
+        }
+    ],
+    "version": 4
+}
