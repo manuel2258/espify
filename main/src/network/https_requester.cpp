@@ -1,5 +1,5 @@
 
-#include "HttpsRequester.h"
+#include "https_requester.h"
 
 extern network::HttpsRequester *https_requester;
 
@@ -23,16 +23,17 @@ void HttpsRequester::event_handler(void *arg, esp_event_base_t event_base,
       esp_wifi_connect();
       s_retry_num++;
       ESP_LOGI(LOG_TAG, "retry to connect to the AP");
-    } else {
-      xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
     }
     ESP_LOGI(LOG_TAG, "connect to the AP fail");
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGI(LOG_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
     s_retry_num = 0;
-    xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     connected = true;
+  } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+    wifi_event_sta_connected_t *event =
+        (wifi_event_sta_connected_t *)event_data;
+    ESP_LOGI(LOG_TAG, "Connected to: %s", (char *)event->ssid);
   }
 }
 
@@ -40,8 +41,35 @@ HttpsRequester::HttpsRequester() {
   xSemaphoreGive(response_lock);
   xSemaphoreGive(request_lock);
 
-  s_wifi_event_group = xEventGroupCreate();
+  tls_cfg = new esp_tls_cfg_t;
+  tls_cfg->alpn_protos = new const char *(nullptr);
+  tls_cfg->cacert_buf = server_root_cert_pem_start;
+  tls_cfg->cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start;
+  tls_cfg->clientcert_buf = NULL;
+  tls_cfg->clientcert_bytes = 0;
+  tls_cfg->clientkey_buf = NULL;
+  tls_cfg->clientkey_bytes = 0;
+  tls_cfg->clientkey_password = NULL;
+  tls_cfg->clientkey_password_len = 0;
+  tls_cfg->non_block = false;
+  tls_cfg->timeout_ms = 1000;
+  tls_cfg->use_global_ca_store = false;
+  tls_cfg->common_name = NULL;
+  tls_cfg->skip_common_name = true;
+  tls_cfg->psk_hint_key = NULL;
+}
 
+HttpsRequester::~HttpsRequester() {
+  ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                                               &wifi_event_handler));
+  ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                               &wifi_event_handler));
+
+  ESP_ERROR_CHECK(esp_wifi_disconnect());
+  ESP_ERROR_CHECK(esp_wifi_deinit());
+}
+
+void HttpsRequester::initialize_wifi() {
   ESP_ERROR_CHECK(esp_netif_init());
 
   esp_netif_create_default_wifi_sta();
@@ -76,19 +104,6 @@ HttpsRequester::HttpsRequester() {
   ESP_ERROR_CHECK(esp_wifi_start());
 
   ESP_LOGI(LOG_TAG, "wifi_init_sta finished.");
-
-  tls_cfg.cacert_buf = server_root_cert_pem_start;
-  tls_cfg.cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start;
-}
-
-HttpsRequester::~HttpsRequester() {
-  ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP,
-                                               &wifi_event_handler));
-  ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                               &wifi_event_handler));
-  vEventGroupDelete(s_wifi_event_group);
-
-  ESP_ERROR_CHECK(esp_wifi_disconnect());
 }
 
 Response *HttpsRequester::make_request(Request *request_data) {
@@ -96,12 +111,11 @@ Response *HttpsRequester::make_request(Request *request_data) {
 
   request_data->build();
 
-  auto host = *request_data->get_host();
-  host = "https://" + host;
+  auto url_ptr = request_data->get_full_url(true);
 
-  printf(host.c_str());
+  ESP_LOGI(LOG_TAG, "Connecting to: %s", url_ptr->c_str());
 
-  struct esp_tls *tls = esp_tls_conn_http_new(host.c_str(), &tls_cfg);
+  struct esp_tls *tls = esp_tls_conn_http_new(url_ptr->c_str(), tls_cfg);
 
   if (tls != NULL) {
     ESP_LOGI(LOG_TAG, "Connection established...");
@@ -110,7 +124,8 @@ Response *HttpsRequester::make_request(Request *request_data) {
     return response_data;
   }
 
-  auto send_data = request_data->get_to_send_data().c_str();
+  auto send_ptr = request_data->get_to_send_data();
+  auto send_data = send_ptr->c_str();
 
   ESP_LOGI(LOG_TAG, "Sending data ... ");
 
@@ -194,6 +209,7 @@ void HttpsRequester::trigger_response_callbacks() {
     Response *response = response_queue.front();
     response_queue.pop();
     response->execute_callback();
+    delete response;
     ESP_LOGI(LOG_TAG, "Triggered new callback");
   }
   xSemaphoreGive(response_lock);

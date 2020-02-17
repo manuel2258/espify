@@ -21,7 +21,7 @@
 
 #include "esp_tls.h"
 
-#include "HttpData.h"
+#include "http_types.h"
 #include <queue>
 
 /* The examples use WiFi configuration that you can set via projectb
@@ -52,8 +52,7 @@ namespace network {
 
 class HttpsRequester {
 private:
-  EventGroupHandle_t s_wifi_event_group;
-  const char *LOG_TAG = "wifi station";
+  const char *LOG_TAG = "HttpsRequester";
   bool connected = false;
 
   xSemaphoreHandle request_lock = xSemaphoreCreateBinary();
@@ -62,7 +61,7 @@ private:
   xSemaphoreHandle response_lock = xSemaphoreCreateBinary();
   std::queue<Response *> response_queue;
 
-  esp_tls_cfg_t tls_cfg;
+  esp_tls_cfg_t *tls_cfg;
 
   Response *make_request(Request *request);
 
@@ -72,6 +71,8 @@ public:
 
   void event_handler(void *arg, esp_event_base_t event_base, int32_t event_id,
                      void *event_data);
+
+  void initialize_wifi();
 
   void update();
 

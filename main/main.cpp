@@ -3,7 +3,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "src/network/HttpsRequester.h"
+#include "src/network/https_requester.h"
 
 std::string AUTH_TOKEN =
     "AQBp6voO06wSFQu4Mv_i-mDoM_NeKH5W3AFJb32tOki2o9EnKPQYEcoGzWSonvOZ-1-"
@@ -22,15 +22,23 @@ std::string REFRESH_TOKEN =
 
 network::HttpsRequester *https_requester;
 
-extern "C" void app_main(void) {
-  esp_err_t ret = nvs_flash_init();
-  if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
-      ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-    ret = nvs_flash_init();
+void main_update(void *pv_pars) {
+  for (;;) {
+    https_requester->trigger_response_callbacks();
+    vTaskDelay(1);
   }
-  ESP_ERROR_CHECK(ret);
+}
 
+void https_requester_update(void *pv_pars) {
+  https_requester->initialize_wifi();
+  for (;;) {
+    https_requester->update();
+    vTaskDelay(1);
+  }
+}
+
+extern "C" void app_main(void) {
+  ESP_ERROR_CHECK(nvs_flash_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
 
   https_requester = new network::HttpsRequester();
@@ -38,8 +46,8 @@ extern "C" void app_main(void) {
   auto request_data =
       new network::Request("accounts.spotify.com", "/api/token", "POST",
                            [](network::Response *response_data) {
-                             ESP_LOGI("Main", "Received response!");
-                             delete response_data;
+                             ESP_LOGI("Main", "Received response: %s",
+                                      response_data->get_body_raw()->c_str());
                            });
   request_data->add_body_data(
       network::KeyValuePair("grant_type", "authorization_code"));
@@ -55,8 +63,8 @@ extern "C" void app_main(void) {
 
   https_requester->add_request_to_queue(request_data);
 
-  while (true)
-    https_requester->update();
+  xTaskCreate(&main_update, "main_update", 8192, NULL, 5, NULL);
+  xTaskCreate(&https_requester_update, "https_update", 4096, NULL, 5, NULL);
 }
 
 // void wifi_update(void) { https_requester->update(); }

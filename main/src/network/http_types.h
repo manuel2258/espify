@@ -3,10 +3,11 @@
 #define REQUEST_H
 
 #include "cJSON.h"
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <functional>
 
 namespace network {
 
@@ -87,7 +88,8 @@ public:
 
   bool is_read_result() const;
   const std::string *get_host() const;
-  std::string get_to_send_data() const;
+  std::unique_ptr<std::string> get_full_url(bool tls) const;
+  std::unique_ptr<std::string> get_to_send_data() const;
 };
 
 /**
