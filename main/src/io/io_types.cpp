@@ -27,7 +27,7 @@ ButtonInput::ButtonInput(gpio_num_t gpio_pin, std::function<void()> callback)
 void ButtonInput::on_pin_down() {
   int64_t current_time = esp_timer_get_time();
 
-  if (last_pressed + 1000000 < current_time) {
+  if (last_pressed + 1500000 < current_time) {
     call_back();
     last_pressed = current_time;
   }
@@ -36,18 +36,17 @@ void ButtonInput::on_pin_down() {
 RotaryInput::RotaryInput(gpio_num_t a, gpio_num_t b,
                          std::function<void(int8_t dir)> callback)
     : pin_a(a), pin_b(b), call_back(callback) {
-  rotary_encoder_info_t info;
-  ESP_ERROR_CHECK(rotary_encoder_init(&info, pin_a, pin_b));
-  ESP_ERROR_CHECK(rotary_encoder_enable_half_steps(&info, true));
+  rotary_encoder_info_t *info = new rotary_encoder_info_t();
+  ESP_ERROR_CHECK(rotary_encoder_init(info, pin_a, pin_b));
+  // ESP_ERROR_CHECK(rotary_encoder_enable_half_steps(&info, true));
 
   queue_handle = rotary_encoder_create_queue();
-  ESP_ERROR_CHECK(rotary_encoder_set_queue(&info, queue_handle));
+  ESP_ERROR_CHECK(rotary_encoder_set_queue(info, queue_handle));
 }
 
 void RotaryInput::check_queue() {
   rotary_encoder_event_t event;
-  if (xQueueReceive(queue_handle, &event, 1000 / portTICK_PERIOD_MS) ==
-      pdTRUE) {
+  if (xQueueReceive(queue_handle, &event, 0)) {
     call_back(event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? 1
                                                                           : -1);
   }

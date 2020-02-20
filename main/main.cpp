@@ -42,7 +42,7 @@ void https_requester_update(void *pv_pars) {
 void spotify_refresh_update(void *pv_pars) {
   for (;;) {
     vTaskDelay(portTICK_PERIOD_MS * 36000);
-    spotify_manager->refresh_access_token();
+    spotify_manager->request_refresh_access_token();
   }
 }
 
@@ -55,13 +55,27 @@ extern "C" void app_main(void) {
   io_manager = new io::IOManager();
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_18, []() { spotify_manager->next_track(); }));
+      GPIO_NUM_21, []() { spotify_manager->request_next_track(); }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_19, []() { spotify_manager->previous_track(); }));
+      GPIO_NUM_19, []() { spotify_manager->request_toggle_playback(); }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_21, []() { spotify_manager->toggle_playback(); }));
+      GPIO_NUM_18, []() { spotify_manager->request_previous_track(); }));
+
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_23, []() { spotify_manager->change_local_volume(-10); }));
+
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_4, []() { spotify_manager->request_set_volume(); }));
+
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_15, []() { spotify_manager->change_local_volume(+10); }));
+
+  /*io_manager->add_rotary(
+      new io::RotaryInput(GPIO_NUM_2, GPIO_NUM_4, [](int8_t dir) {
+        ESP_LOGI("Rotary", "Dir: %i", dir);
+      }));*/
 
   xTaskCreate(&main_update, "main_update", 8192, NULL, 5, NULL);
   xTaskCreate(&https_requester_update, "https_update", 4096, NULL, 5, NULL);

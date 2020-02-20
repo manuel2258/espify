@@ -9,6 +9,7 @@
 
 #include "../network/http_types.h"
 #include "../network/https_requester.h"
+#include "spotify_types.h"
 
 #define ACCESS_TOKEN_RETRY_AMOUNT 5
 
@@ -21,11 +22,13 @@ class SpotifyManager {
 private:
   const char *LOG_TAG = "SpotifyManager";
 
+  bool initialized = false;
+
   std::string access_token;
   uint16_t access_token_retry_times;
   bool access_token_received = false;
 
-  bool is_playing;
+  spotify::SpotifyState current_state;
 
 public:
   SpotifyManager();
@@ -36,29 +39,36 @@ public:
    * If successfull sets access_token_received to true.
    * Other request can't be made before the access token is received.
    */
-  void refresh_access_token();
+  void request_refresh_access_token();
 
   /**
    * @brief Gets and updates the current state of the player
    */
-  void update_local_player();
+  void request_update_local_player();
+
+  /**
+   * @brief Gets and updates the current state of the player
+   */
+  void request_update_local_volume();
 
   /**
    * @brief Stops or starts the playback.
    */
-  void toggle_playback();
+  void request_toggle_playback();
 
-  // void set_volume(int const volume) const;
+  void request_set_volume();
 
   /**
    * @brief Skips to the next song.
    */
-  void next_track() const;
+  void request_next_track();
 
   /**
    * @brief Skips to the last song.
    */
-  void previous_track() const;
+  void request_previous_track();
+
+  void change_local_volume(int8_t dif);
 };
 
 } // namespace spotify

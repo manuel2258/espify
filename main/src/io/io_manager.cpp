@@ -27,7 +27,7 @@ void io::IOManager::add_rotary(io::RotaryInput *rotary) {
 void io::IOManager::update() {
   uint32_t triggered_pin;
   if (xQueueReceive(buttons_queue, &triggered_pin, 0)) {
-    ESP_LOGI("IOManager", "Triggered %i button", triggered_pin);
+    // ESP_LOGI("IOManager", "Triggered %i button", triggered_pin);
     for (auto button : buttons) {
       if ((uint32_t)button->pin == triggered_pin) {
         button->on_pin_down();

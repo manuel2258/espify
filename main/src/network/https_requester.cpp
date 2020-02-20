@@ -179,15 +179,15 @@ Response *HttpsRequester::make_request(Request *request_data) {
         ESP_LOGI(LOG_TAG, "connection closed");
         connection_alive = false;
       } else {
-        ESP_LOGI(LOG_TAG, "Received %i bytes", recieved);
+
         data.append(buffer, recieved);
       }
     }
-
     for (auto buffer : buffers) {
       buffer_pool.emplace(buffer);
     }
 
+    ESP_LOGI(LOG_TAG, "Received %i bytes", data.length());
     response_data->add_response_data(data);
   } else {
     response_data->set_success();
