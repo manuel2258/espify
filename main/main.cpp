@@ -1,16 +1,13 @@
 // . $HOME/esp-idf/export.sh
 
+#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/io/io_manager.h"
+#include "src/io/io_types.h"
 #include "src/network/https_requester.h"
-
-std::string AUTH_TOKEN =
-    "AQBp6voO06wSFQu4Mv_i-mDoM_NeKH5W3AFJb32tOki2o9EnKPQYEcoGzWSonvOZ-1-"
-    "Icmu6fcnI-Xa_TgvBXsTLiwbUlBE1pSsHerq4sJQHK-JLVzbRPWcvGlZ9ybu1CD3XIMoSM-"
-    "Thg7e--y7wLHiqFiKbWbD_ZsgqP_CT94EG4Suz1_"
-    "OrEM9ptKvNOhbqzpw8RMO8ioc7VwXIteVjYFuEQUVrDK_"
-    "RRt7QiP23mxuHEeHAigBTF2wGHwwkqSsOYqF8TQ";
+#include "src/spotify/spotify_manager.h"
 
 std::string CLIENT_ID = "e0fabf234d944aeba88bee39c39abc9f";
 std::string CLIENT_SECRET = "fbe969d7f3c544dda1f607d129577017";
@@ -20,12 +17,17 @@ std::string REFRESH_TOKEN =
     "XSlCo6Romsf7qZd58aDngQs3sUC5kbOgMNMVblNMQGzjiGEfHEQramwJiEMgN0SUMFmDIsY-"
     "i1KCxX9VJ-48aM3FTKknYYQSzegLm3A";
 
+QueueHandle_t buttons_queue;
+
 network::HttpsRequester *https_requester;
+spotify::SpotifyManager *spotify_manager;
+io::IOManager *io_manager;
 
 void main_update(void *pv_pars) {
   for (;;) {
     https_requester->trigger_response_callbacks();
-    vTaskDelay(1);
+    io_manager->update();
+    vTaskDelay(10);
   }
 }
 
@@ -33,7 +35,14 @@ void https_requester_update(void *pv_pars) {
   https_requester->initialize_wifi();
   for (;;) {
     https_requester->update();
-    vTaskDelay(1);
+    vTaskDelay(10);
+  }
+}
+
+void spotify_refresh_update(void *pv_pars) {
+  for (;;) {
+    vTaskDelay(portTICK_PERIOD_MS * 36000);
+    spotify_manager->refresh_access_token();
   }
 }
 
@@ -42,29 +51,20 @@ extern "C" void app_main(void) {
   ESP_ERROR_CHECK(esp_event_loop_create_default());
 
   https_requester = new network::HttpsRequester();
+  spotify_manager = new spotify::SpotifyManager();
+  io_manager = new io::IOManager();
 
-  auto request_data =
-      new network::Request("accounts.spotify.com", "/api/token", "POST",
-                           [](network::Response *response_data) {
-                             ESP_LOGI("Main", "Received response: %s",
-                                      response_data->get_body_raw()->c_str());
-                           });
-  request_data->add_body_data(
-      network::KeyValuePair("grant_type", "authorization_code"));
-  request_data->add_body_data(network::KeyValuePair("code", AUTH_TOKEN));
-  request_data->add_body_data(
-      network::KeyValuePair("redirect_uri", "https%3A%2F%2F2258studio.com"));
-  request_data->add_body_data(network::KeyValuePair("client_id", CLIENT_ID));
-  request_data->add_body_data(
-      network::KeyValuePair("client_secret", CLIENT_SECRET));
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_18, []() { spotify_manager->next_track(); }));
 
-  request_data->add_header_data(network::KeyValuePair(
-      "Content-Type", "application/x-www-form-urlencoded"));
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_19, []() { spotify_manager->previous_track(); }));
 
-  https_requester->add_request_to_queue(request_data);
+  io_manager->add_button(new io::ButtonInput(
+      GPIO_NUM_21, []() { spotify_manager->toggle_playback(); }));
 
   xTaskCreate(&main_update, "main_update", 8192, NULL, 5, NULL);
   xTaskCreate(&https_requester_update, "https_update", 4096, NULL, 5, NULL);
+  xTaskCreate(&spotify_refresh_update, "spotify_refresh_update", 2048, NULL, 5,
+              NULL);
 }
-
-// void wifi_update(void) { https_requester->update(); }
