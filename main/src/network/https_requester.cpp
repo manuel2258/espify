@@ -52,7 +52,7 @@ HttpsRequester::HttpsRequester() {
   tls_cfg->clientkey_password = NULL;
   tls_cfg->clientkey_password_len = 0;
   tls_cfg->non_block = false;
-  tls_cfg->timeout_ms = 1000;
+  tls_cfg->timeout_ms = 5000;
   tls_cfg->use_global_ca_store = false;
   tls_cfg->common_name = NULL;
   tls_cfg->skip_common_name = true;
@@ -107,7 +107,7 @@ void HttpsRequester::initialize_wifi() {
 }
 
 Response *HttpsRequester::make_request(Request *request_data) {
-  Response *response_data = new Response(request_data->callback);
+  auto response_data = new Response(request_data->callback);
 
   request_data->build();
 
@@ -115,9 +115,11 @@ Response *HttpsRequester::make_request(Request *request_data) {
 
   ESP_LOGI(LOG_TAG, "Connecting to: %s", url_ptr->c_str());
 
-  struct esp_tls *tls = esp_tls_conn_http_new(url_ptr->c_str(), tls_cfg);
+  std::unique_ptr<esp_tls_t, std::function<void(esp_tls_t *)>> tls(
+      esp_tls_conn_http_new(url_ptr->c_str(), tls_cfg),
+      [](esp_tls_t *tls) { esp_tls_conn_delete(tls); });
 
-  if (tls != NULL) {
+  if (tls.get() != NULL) {
     ESP_LOGI(LOG_TAG, "Connection established...");
   } else {
     ESP_LOGE(LOG_TAG, "Connection failed...");
@@ -127,11 +129,11 @@ Response *HttpsRequester::make_request(Request *request_data) {
   auto send_ptr = request_data->get_to_send_data();
   auto send_data = send_ptr->c_str();
 
-  ESP_LOGI(LOG_TAG, "Sending data ... ");
+  // ESP_LOGI(LOG_TAG, "Sending data: \n%s", send_data);
 
   size_t written_bytes = 0;
   do {
-    int ret = esp_tls_conn_write(tls, send_data + written_bytes,
+    int ret = esp_tls_conn_write(tls.get(), send_data + written_bytes,
                                  strlen(send_data) - written_bytes);
     if (ret >= 0) {
       ESP_LOGI(LOG_TAG, "%d bytes written", ret);
@@ -146,14 +148,26 @@ Response *HttpsRequester::make_request(Request *request_data) {
   ESP_LOGI(LOG_TAG, "Reading HTTP response...");
 
   bool read_result = request_data->is_read_result();
-  delete request_data;
 
   if (read_result) {
-    const int buffer_size = 64;
     std::string data;
-    while (true) {
-      char *buffer = new char[buffer_size];
-      int recieved = esp_tls_conn_read(tls, buffer, buffer_size);
+    bool connection_alive = true;
+
+    std::vector<char *> buffers;
+    while (connection_alive) {
+      char *buffer;
+      // Simple pooling, if no buffer in pool create one
+      // Buffer are then collected on vector and emplaced back into pool
+      if (buffer_pool.empty()) {
+        buffer = new char[HTTP_RECEIVE_BUFFER_SIZE];
+      } else {
+        buffer = buffer_pool.front();
+        buffer_pool.pop();
+      }
+      buffers.push_back(buffer);
+
+      int recieved =
+          esp_tls_conn_read(tls.get(), buffer, HTTP_RECEIVE_BUFFER_SIZE);
 
       if (recieved < 0 && !(recieved == ESP_TLS_ERR_SSL_WANT_WRITE ||
                             recieved == ESP_TLS_ERR_SSL_WANT_READ)) {
@@ -163,14 +177,20 @@ Response *HttpsRequester::make_request(Request *request_data) {
 
       if (recieved == 0) {
         ESP_LOGI(LOG_TAG, "connection closed");
-        break;
+        connection_alive = false;
+      } else {
+        ESP_LOGI(LOG_TAG, "Received %i bytes", recieved);
+        data.append(buffer, recieved);
       }
-
-      data += std::string(buffer, recieved);
-      delete buffer;
     }
+
+    for (auto buffer : buffers) {
+      buffer_pool.emplace(buffer);
+    }
+
     response_data->add_response_data(data);
   } else {
+    response_data->set_success();
     ESP_LOGI(LOG_TAG, "Skipping to read result");
   }
   return response_data;
@@ -197,6 +217,7 @@ void HttpsRequester::update() {
   xSemaphoreGive(request_lock);
 
   auto response = make_request(request_data);
+  delete request_data;
 
   xSemaphoreTake(response_lock, portMAX_DELAY);
   response_queue.push(response);
@@ -205,14 +226,25 @@ void HttpsRequester::update() {
 
 void HttpsRequester::trigger_response_callbacks() {
   xSemaphoreTake(response_lock, portMAX_DELAY);
+  if (response_queue.empty()) {
+    xSemaphoreGive(response_lock);
+    return;
+  }
+
+  ESP_LOGI(LOG_TAG, "Collecting callbacks");
+  std::vector<Response *> callbacks;
   while (!response_queue.empty()) {
     Response *response = response_queue.front();
     response_queue.pop();
-    response->execute_callback();
-    delete response;
-    ESP_LOGI(LOG_TAG, "Triggered new callback");
+
+    callbacks.push_back(response);
   }
   xSemaphoreGive(response_lock);
+
+  for (auto callback : callbacks) {
+    callback->execute_callback();
+    delete callback;
+  }
 }
 
 } // namespace network

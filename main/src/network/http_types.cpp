@@ -1,5 +1,6 @@
 
 #include "http_types.h"
+#include "esp_log.h"
 
 namespace network {
 
@@ -21,23 +22,14 @@ Request::~Request() {
 }
 
 void Request::add_body_data(KeyValuePair &&key_val_pair) {
-  if (body_data == nullptr) {
-    body_data = new std::vector<KeyValuePair>;
-  }
   body_data->push_back(std::move(key_val_pair));
 }
 
 void Request::add_header_data(KeyValuePair &&key_val_pair) {
-  if (header_data == nullptr) {
-    header_data = new std::vector<KeyValuePair>;
-  }
   header_data->push_back(std::move(key_val_pair));
 }
 
 void Request::add_query_data(KeyValuePair &&key_val_pair) {
-  if (query_data == nullptr) {
-    query_data = new std::vector<KeyValuePair>;
-  }
   query_data->push_back(std::move(key_val_pair));
 }
 
@@ -54,12 +46,13 @@ void Request::build() {
   header += "Accept-Language: en-us\r\n";
   header += "Connection: close\r\n";
   header += "Accept: */*\r\n";
+  header += "Content-Type: application/x-www-form-urlencoded\r\n";
   if (header_data != nullptr) {
     for (KeyValuePair request_data : *header_data) {
-      header += request_data.to_equal_sign();
+      header += request_data.to_double_point() + "\r\n";
     }
   }
-  header += "Content-length: " + std::to_string(body.length()) + "\r\n";
+  header += "Content-Length: " + std::to_string(body.length()) + "\r\n";
 
   header += "\r\n";
 }
@@ -110,8 +103,21 @@ void Response::add_response_data(std::string &data) {
   int sep = data.find("\r\n\r\n");
   header = data.substr(0, sep);
   body = data.substr(sep + 4, data.length() - 1);
-  success = true;
+
+  int http_ver = data.find("HTTP");
+  int status_start = (int)data.at(http_ver + 9);
+
+  if (status_start == 50) {
+    success = true;
+  } else {
+    auto status_message =
+        data.substr(http_ver + 9, data.find("\r\n") - (http_ver + 9));
+    ESP_LOGE("Response", "Unsuccessfull request: %s", status_message.c_str());
+    ESP_LOGI("Response", "Fullresponse is: %s", data.c_str());
+  }
 }
+
+void Response::set_success() { success = true; }
 
 void Response::execute_callback() { callback(this); }
 

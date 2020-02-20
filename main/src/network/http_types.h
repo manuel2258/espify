@@ -97,7 +97,7 @@ public:
  */
 class Response {
 private:
-  bool success;
+  bool success = false;
   std::string header;
   std::string body;
   std::function<void(Response *)> callback;
@@ -113,6 +113,11 @@ public:
    * @param &data: The to add response string
    */
   void add_response_data(std::string &data);
+
+  /**
+   * @brief Set the success of request to true
+   */
+  void set_success();
 
   std::unique_ptr<cJSON, std::function<void(cJSON *)>> get_body_as_json();
   const std::string *get_body_raw() const;
