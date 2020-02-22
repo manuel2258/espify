@@ -93,6 +93,7 @@
         "*.lxx": "cpp",
         "*.idl": "cpp",
         "affinity": "cpp",
-        "polytope": "cpp"
+        "polytope": "cpp",
+        "types": "cpp"
     }
 } 

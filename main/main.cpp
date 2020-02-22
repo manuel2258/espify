@@ -4,6 +4,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/graphics/graphics_manager.h"
+#include "src/graphics/graphics_types.h"
 #include "src/io/io_manager.h"
 #include "src/io/io_types.h"
 #include "src/network/https_requester.h"
@@ -22,6 +24,7 @@ QueueHandle_t buttons_queue;
 network::HttpsRequester *https_requester;
 spotify::SpotifyManager *spotify_manager;
 io::IOManager *io_manager;
+graphics::GraphicsManager *graphics_manager;
 
 void main_update(void *pv_pars) {
   for (;;) {
@@ -41,7 +44,7 @@ void https_requester_update(void *pv_pars) {
 
 void spotify_refresh_update(void *pv_pars) {
   for (;;) {
-    vTaskDelay(portTICK_PERIOD_MS * 36000);
+    vTaskDelay(portTICK_PERIOD_MS * 3600000);
     spotify_manager->request_refresh_access_token();
   }
 }
@@ -53,6 +56,9 @@ extern "C" void app_main(void) {
   https_requester = new network::HttpsRequester();
   spotify_manager = new spotify::SpotifyManager();
   io_manager = new io::IOManager();
+  graphics_manager = new graphics::GraphicsManager();
+
+  //--- Init Inputs ---
 
   io_manager->add_button(new io::ButtonInput(
       GPIO_NUM_21, []() { spotify_manager->request_next_track(); }));
@@ -64,18 +70,26 @@ extern "C" void app_main(void) {
       GPIO_NUM_18, []() { spotify_manager->request_previous_track(); }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_23, []() { spotify_manager->change_local_volume(-10); }));
+      GPIO_NUM_23, []() { spotify_manager->change_local_volume(-5); }));
 
   io_manager->add_button(new io::ButtonInput(
       GPIO_NUM_4, []() { spotify_manager->request_set_volume(); }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_15, []() { spotify_manager->change_local_volume(+10); }));
+      GPIO_NUM_15, []() { spotify_manager->change_local_volume(+5); }));
 
-  /*io_manager->add_rotary(
-      new io::RotaryInput(GPIO_NUM_2, GPIO_NUM_4, [](int8_t dir) {
-        ESP_LOGI("Rotary", "Dir: %i", dir);
-      }));*/
+  // -- Init Graphics --
+
+  auto track_group = new graphics::DrawGroup();
+
+  auto track_background = new graphics::RectangleDrawAble(
+      0, 0, 160, 50, new color_t{5, 5, 5}, true);
+
+  track_group->add_child(track_background);
+
+  graphics_manager->add_to_base(track_group);
+
+  graphics_manager->draw_all();
 
   xTaskCreate(&main_update, "main_update", 8192, NULL, 5, NULL);
   xTaskCreate(&https_requester_update, "https_update", 4096, NULL, 5, NULL);
