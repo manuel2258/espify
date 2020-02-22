@@ -119,9 +119,7 @@ Response *HttpsRequester::make_request(Request *request_data) {
       esp_tls_conn_http_new(url_ptr->c_str(), tls_cfg),
       [](esp_tls_t *tls) { esp_tls_conn_delete(tls); });
 
-  if (tls.get() != NULL) {
-    ESP_LOGI(LOG_TAG, "Connection established...");
-  } else {
+  if (tls.get() == NULL) {
     ESP_LOGE(LOG_TAG, "Connection failed...");
     return response_data;
   }
@@ -144,8 +142,6 @@ Response *HttpsRequester::make_request(Request *request_data) {
       return response_data;
     }
   } while (written_bytes < strlen(send_data));
-
-  ESP_LOGI(LOG_TAG, "Reading HTTP response...");
 
   bool read_result = request_data->is_read_result();
 
