@@ -94,6 +94,7 @@
         "*.idl": "cpp",
         "affinity": "cpp",
         "polytope": "cpp",
-        "types": "cpp"
+        "types": "cpp",
+        "drawable": "cpp"
     }
 } 

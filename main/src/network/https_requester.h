@@ -41,9 +41,6 @@ class HttpsRequester {
 private:
   const char *LOG_TAG = "HttpsRequester";
 
-  // Whether the device is connected to a wifi.
-  bool connected = false;
-
   // Locks to ensure threadsavety
   xSemaphoreHandle request_lock = xSemaphoreCreateBinary();
   xSemaphoreHandle response_lock = xSemaphoreCreateBinary();
@@ -67,6 +64,9 @@ private:
   Response *make_request(Request *request);
 
 public:
+  // Whether the device is connected to a wifi.
+  bool connected = false;
+
   HttpsRequester();
   ~HttpsRequester();
 

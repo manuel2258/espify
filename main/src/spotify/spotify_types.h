@@ -5,15 +5,29 @@
 
 namespace spotify {
 
+struct Track {
+  char *track_name = nullptr;
+  char *artist_name = nullptr;
+
+  uint8_t *image_buf = nullptr;
+  int buf_size;
+
+  uint64_t length_time = 0;
+  uint64_t start_time = 0;
+
+  uint8_t progress = 0;
+};
+
 struct SpotifyState {
-  bool is_playing;
+  bool is_playing = false;
+  bool initialized = false;
 
-  std::string current_track;
+  Track track;
 
-  uint64_t end_time;
-  uint64_t start_time;
+  uint8_t volume = 0;
+  uint8_t local_volume = 0;
 
-  uint8_t volume;
+  uint8_t volume_change_counter = 0;
 };
 
 } // namespace spotify

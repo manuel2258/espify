@@ -28,9 +28,9 @@ private:
   uint16_t access_token_retry_times;
   bool access_token_received = false;
 
+public:
   spotify::SpotifyState current_state;
 
-public:
   SpotifyManager();
   ~SpotifyManager();
 
@@ -44,12 +44,11 @@ public:
   /**
    * @brief Gets and updates the current state of the player
    */
-  void request_update_local_player();
+  void request_update_local_track();
 
-  /**
-   * @brief Gets and updates the current state of the player
-   */
   void request_update_local_volume();
+
+  void request_track_image(std::string &&url_string);
 
   /**
    * @brief Stops or starts the playback.
@@ -69,6 +68,8 @@ public:
   void request_previous_track();
 
   void change_local_volume(int8_t dif);
+
+  void update();
 };
 
 } // namespace spotify

@@ -27,7 +27,7 @@ ButtonInput::ButtonInput(gpio_num_t gpio_pin, std::function<void()> callback)
 void ButtonInput::on_pin_down() {
   int64_t current_time = esp_timer_get_time();
 
-  if (last_pressed + 1500000 < current_time) {
+  if (last_pressed + 100000 < current_time) {
     call_back();
     last_pressed = current_time;
   }

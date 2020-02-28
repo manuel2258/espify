@@ -1,7 +1,13 @@
 
 #include "https_requester.h"
 
+#include "FreeRTOS.h"
+#include "freertos/event_groups.h"
+
+#include "../graphics/graphics_events.h"
+
 extern network::HttpsRequester *https_requester;
+extern EventGroupHandle_t graphics_events_handle;
 
 namespace network {
 
@@ -19,17 +25,19 @@ void HttpsRequester::event_handler(void *arg, esp_event_base_t event_base,
   } else if (event_base == WIFI_EVENT &&
              event_id == WIFI_EVENT_STA_DISCONNECTED) {
     connected = false;
+    xEventGroupSetBits(graphics_events_handle, STATUS_CHANGED);
     if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
       esp_wifi_connect();
       s_retry_num++;
       ESP_LOGI(LOG_TAG, "retry to connect to the AP");
     }
-    ESP_LOGI(LOG_TAG, "connect to the AP fail");
+    ESP_LOGE(LOG_TAG, "connect to the AP fail");
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGI(LOG_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
     s_retry_num = 0;
     connected = true;
+    xEventGroupSetBits(graphics_events_handle, STATUS_CHANGED);
   } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
     wifi_event_sta_connected_t *event =
         (wifi_event_sta_connected_t *)event_data;
@@ -52,7 +60,7 @@ HttpsRequester::HttpsRequester() {
   tls_cfg->clientkey_password = NULL;
   tls_cfg->clientkey_password_len = 0;
   tls_cfg->non_block = false;
-  tls_cfg->timeout_ms = 5000;
+  tls_cfg->timeout_ms = 10000;
   tls_cfg->use_global_ca_store = false;
   tls_cfg->common_name = NULL;
   tls_cfg->skip_common_name = true;
