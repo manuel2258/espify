@@ -80,16 +80,8 @@ void graphics_update(void *pv_pars) {
   }
 }
 
-extern "C" void app_main(void) {
-  ESP_ERROR_CHECK(nvs_flash_init());
-  ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-  https_requester = new network::HttpsRequester();
-  spotify_manager = new spotify::SpotifyManager();
-  io_manager = new io::IOManager();
-  graphics_manager = new graphics::GraphicsManager();
-
-  // --- Init Graphics ---
+void initialize_graphics_objects() {
+  // Initializes colods
   auto green_color = new color_t{0, 150, 0};
   auto red_color = new color_t{150, 0, 0};
   auto text_color = new color_t{150, 150, 150};
@@ -133,27 +125,23 @@ extern "C" void app_main(void) {
   auto progress_background = new graphics::RectangleDrawAble(
       IMAGE_WIDTH, 0, SCREEN_WIDTH - IMAGE_WIDTH, SCREEN_HEIGHT - TRACK_HEIGHT,
       bg_color, true);
+  uint8_t *const_val = new uint8_t(100);
 
   auto progress_arc = new graphics::ArcDrawAble(
       IMAGE_WIDTH + 40, 35, 32, 5,
       &spotify_manager->current_state.track.progress, 3, 30, green_color);
-
-  uint8_t *const_val = new uint8_t(100);
   auto progress_arc_bg = new graphics::ArcDrawAble(
       IMAGE_WIDTH + 40, 35, 32, 5, const_val, 3, 30, text_color);
 
   auto volume_arc_remote = new graphics::ArcDrawAble(
       IMAGE_WIDTH + 40, 35, 20, 4, &spotify_manager->current_state.volume, 3,
       30, green_color);
-
   auto volume_arc_local = new graphics::ArcDrawAble(
       IMAGE_WIDTH + 40, 35, 20, 4, &spotify_manager->current_state.local_volume,
       3, 30, red_color);
-
   auto volume_local_cond = new graphics::ConditionalDrawAble(
       []() { return spotify_manager->current_state.volume_change_counter > 0; },
       volume_arc_local, volume_arc_remote);
-
   auto volume_arc_bg = new graphics::ArcDrawAble(IMAGE_WIDTH + 40, 35, 20, 4,
                                                  const_val, 3, 30, text_color);
 
@@ -244,9 +232,20 @@ extern "C" void app_main(void) {
   graphics_manager->register_event(VOLUME_CHANGED, volume_local_cond);
 
   graphics_manager->draw_all();
+}
+
+extern "C" void app_main(void) {
+  ESP_ERROR_CHECK(nvs_flash_init());
+  ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+  https_requester = new network::HttpsRequester();
+  spotify_manager = new spotify::SpotifyManager();
+  io_manager = new io::IOManager();
+  graphics_manager = new graphics::GraphicsManager();
+
+  initialize_graphics_objects();
 
   // --- Init Inputs ---
-
   io_manager->add_button(new io::ButtonInput(
       GPIO_NUM_21, []() { spotify_manager->request_next_track(); }));
 

@@ -11,6 +11,9 @@
 
 namespace graphics {
 
+/**
+ * @brief Manages and triggers drawables.
+ */
 class GraphicsManager {
 
 private:
@@ -25,10 +28,27 @@ private:
 public:
   GraphicsManager();
 
+  /**
+   * @brief Adds a drawable to the base drawable group
+   */
   void add_to_base(IDrawAble *draw_able);
+
+  /**
+   * @brief Draws all current added drawables.
+   */
   void draw_all();
 
+  /**
+   * @brief Updates the Event-System
+   *
+   */
   void update();
+
+  /**
+   * @brief Registers a new Event.
+   * @param mask The to trigger at mask.
+   * @param draw_able The to draw drawable.
+   */
   void register_event(EventBits_t mask, IDrawAble *draw_able);
 };
 

@@ -1,4 +1,3 @@
-
 #ifndef GRAPHICS_GRAPHICS_TYPES_H
 #define GRAPHICS_GRAPHICS_TYPES_H
 
@@ -11,14 +10,23 @@
 #include "tft.h"
 #include "tftspi.h"
 
+/**
+ * @brief Drawable Graphic Types for the ESP_TFT_LIBRARY.
+ */
 namespace graphics {
 
+/**
+ * @brief Simple interface for drawables.
+ */
 class IDrawAble {
 public:
   virtual void draw();
   virtual ~IDrawAble() = default;
 };
 
+/**
+ * @brief A group of drawables.
+ */
 class DrawGroup : public IDrawAble {
 private:
   std::vector<IDrawAble *> children;
@@ -30,6 +38,9 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A abstract positioned drawable.
+ */
 class PositionedDrawAble : public IDrawAble {
 protected:
   uint8_t x;
@@ -41,6 +52,9 @@ public:
   virtual ~PositionedDrawAble() = default;
 };
 
+/**
+ * @brief A rectangle.
+ */
 class RectangleDrawAble : public PositionedDrawAble {
 protected:
   uint8_t width;
@@ -60,6 +74,10 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A dynamic text.
+ * Draws the text at the pointers pointer at the given position.
+ */
 class TextPtrDrawAble : public PositionedDrawAble {
 protected:
   color_t *color;
@@ -77,6 +95,10 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A static text.
+ * Draws a static text at the given position.
+ */
 class TextDrawAble : public PositionedDrawAble {
 protected:
   color_t *color;
@@ -97,22 +119,30 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A dynamic JPEG-Image.
+ * Draws the image at the pointers pointer at the given position.
+ */
 class JpegBufferDrawAble : public PositionedDrawAble {
 private:
   uint8_t **image_buf;
   int *buf_size;
 
 public:
-  JpegBufferDrawAble(uint8_t n_x, uint8_t n_y, uint8_t **buf_adr_ptr,
-                     int *buf_size_ptr)
-      : PositionedDrawAble(n_x, n_y), image_buf(buf_adr_ptr),
-        buf_size(buf_size_ptr) {}
+  JpegBufferDrawAble(uitext_y, uint8_t **buf_adr_ptr,
+                     intext
+      : PositionedDrawAtext_buf(buf_adr_ptr),
+        buf_size(buf_sitext
 
-  virtual ~JpegBufferDrawAble() = default;
+  virtual ~JpegBufferDrtext
 
-  void draw() override;
+  void draw() override;text
 };
 
+/**
+ * @brief A static BMP-Image.
+ * Draws a static image at the given position.
+ */
 class BmpPathDrawAble : public PositionedDrawAble {
 private:
   char *bmp_path;
@@ -130,6 +160,10 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A dynamic condition based drawable.
+ * Has two childs which will be either drawn based on the condition.
+ */
 class ConditionalDrawAble : public IDrawAble {
 private:
   std::function<bool()> condition;
@@ -148,6 +182,12 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A dynamic Arc.
+ * Draws a Arc based on the value and its scale in degrees.
+ * Example: value = 20, scale = 3, start_angle = 40
+ * -> from 40° to 100°
+ */
 class ArcDrawAble : public PositionedDrawAble {
 private:
   uint16_t r;
@@ -172,6 +212,10 @@ public:
   void draw() override;
 };
 
+/**
+ * @brief A static horizontal line.
+ * Draws a static horitontal line given its position and length.
+ */
 class LineDrawAble : public PositionedDrawAble {
 private:
   uint16_t length;

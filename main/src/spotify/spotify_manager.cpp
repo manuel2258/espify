@@ -270,6 +270,7 @@ void SpotifyManager::request_toggle_playback() {
         "api.spotify.com", "/v1/me/player/pause", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = false;
+          request_update_local_track();
         },
         false);
   } else {
@@ -277,6 +278,7 @@ void SpotifyManager::request_toggle_playback() {
         "api.spotify.com", "/v1/me/player/play", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = true;
+          request_update_local_track();
         },
         false);
   }
