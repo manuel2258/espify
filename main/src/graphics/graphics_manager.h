@@ -50,6 +50,14 @@ public:
    * @param draw_able The to draw drawable.
    */
   void register_event(EventBits_t mask, IDrawAble *draw_able);
+
+  /**
+   * @brief Removes a Event.
+   * Removes mask vector and rebuilds mask if nesserary.
+   * @param mask
+   * @param draw_able
+   */
+  void unregister_event(EventBits_t mask, IDrawAble *draw_able);
 };
 
 } // namespace graphics

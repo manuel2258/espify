@@ -2,6 +2,11 @@
 
 #include "esp_log.h"
 
+#include "graphics_events.h"
+#include "graphics_manager.h"
+
+extern graphics::GraphicsManager *graphics_manager;
+
 namespace graphics {
 
 DrawGroup::~DrawGroup() {
@@ -27,10 +32,48 @@ void RectangleDrawAble::draw() {
 }
 
 void TextPtrDrawAble::draw() {
-  if (*text_buf != nullptr) {
-    tft_fg = *color;
-    TFT_setFont(font, NULL);
-    TFT_print(*text_buf, x, y);
+  if (text->text != nullptr) {
+    if (last_id != text->id) {
+      last_id = text->id;
+      offset = 0;
+      initial_drawn = false;
+
+      TFT_setFont(font, NULL);
+      if (TFT_getStringWidth(text->text) > width) {
+        char *buf = text->text;
+        while (TFT_getStringWidth(buf) > width) {
+          buf++;
+        }
+        length = buf - text->text;
+        dynamic = true;
+        if (!update_registered) {
+          graphics_manager->register_event(SECOND_OVER, this);
+          update_registered = true;
+          ESP_LOGI("TextPtr", "Registered update event");
+        }
+      } else {
+        dynamic = false;
+        if (update_registered) {
+          graphics_manager->unregister_event(SECOND_OVER, this);
+          update_registered = false;
+          ESP_LOGI("TextPtr", "Unregistered update event");
+        }
+      }
+    }
+
+    if (dynamic || !initial_drawn) {
+      initial_drawn = true;
+      TFT_fillRect(x, y, width + 5, text_height, *bg_color);
+
+      tft_fg = *color;
+      TFT_setFont(font, NULL);
+      TFT_print(text->text + offset, x, y);
+
+      offset++;
+      if (offset > length) {
+        offset = 0;
+      }
+    }
   }
 }
 

@@ -95,6 +95,9 @@
         "affinity": "cpp",
         "polytope": "cpp",
         "types": "cpp",
-        "drawable": "cpp"
+        "drawable": "cpp",
+        "callback": "cpp",
+        "image": "cpp",
+        "mixinvector": "cpp"
     }
 } 

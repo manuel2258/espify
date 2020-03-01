@@ -37,6 +37,8 @@ spotify::SpotifyManager *spotify_manager;
 io::IOManager *io_manager;
 graphics::GraphicsManager *graphics_manager;
 
+extern EventGroupHandle_t graphics_events_handle;
+
 void main_update(void *pv_pars) {
   for (;;) {
     https_requester->trigger_response_callbacks();
@@ -65,6 +67,7 @@ void spotify_update(void *pv_pars) {
            j < SECONDS_PER_STATE_UPDATE / SECONDS_PER_PROGRESS_UPDATE; j++) {
         vTaskDelay(configTICK_RATE_HZ * SECONDS_PER_PROGRESS_UPDATE);
         spotify_manager->update();
+        xEventGroupSetBits(graphics_events_handle, SECOND_OVER);
       }
       spotify_manager->request_update_local_track();
       spotify_manager->request_update_local_volume();
@@ -81,7 +84,7 @@ void graphics_update(void *pv_pars) {
 }
 
 void initialize_graphics_objects() {
-  // Initializes colods
+  // Initializes colors
   auto green_color = new color_t{0, 150, 0};
   auto red_color = new color_t{150, 0, 0};
   auto text_color = new color_t{150, 150, 150};
@@ -94,11 +97,11 @@ void initialize_graphics_objects() {
       true);
 
   auto track_text = new graphics::TextPtrDrawAble(
-      7, SCREEN_HEIGHT - 40, text_color, DEFAULT_FONT,
-      &spotify_manager->current_state.track.track_name);
+      7, SCREEN_HEIGHT - 40, text_color, bg_color, DEFAULT_FONT,
+      SCREEN_WIDTH - 14, &spotify_manager->current_state.track.track_name);
   auto artist_text = new graphics::TextPtrDrawAble(
-      7, SCREEN_HEIGHT - 20, green_color, DEFAULT_FONT,
-      &spotify_manager->current_state.track.artist_name);
+      7, SCREEN_HEIGHT - 20, green_color, bg_color, DEFAULT_FONT,
+      SCREEN_WIDTH - 14, &spotify_manager->current_state.track.artist_name);
 
   auto line = new graphics::LineDrawAble(5, SCREEN_HEIGHT - TRACK_HEIGHT,
                                          SCREEN_WIDTH - 10, green_color);
@@ -128,21 +131,21 @@ void initialize_graphics_objects() {
   uint8_t *const_val = new uint8_t(100);
 
   auto progress_arc = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 32, 5,
+      IMAGE_WIDTH + 40, 35, 32, 3,
       &spotify_manager->current_state.track.progress, 3, 30, green_color);
   auto progress_arc_bg = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 32, 5, const_val, 3, 30, text_color);
+      IMAGE_WIDTH + 40, 35, 32, 3, const_val, 3, 30, text_color);
 
   auto volume_arc_remote = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 20, 4, &spotify_manager->current_state.volume, 3,
+      IMAGE_WIDTH + 40, 35, 20, 2, &spotify_manager->current_state.volume, 3,
       30, green_color);
   auto volume_arc_local = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 20, 4, &spotify_manager->current_state.local_volume,
+      IMAGE_WIDTH + 40, 35, 20, 2, &spotify_manager->current_state.local_volume,
       3, 30, red_color);
   auto volume_local_cond = new graphics::ConditionalDrawAble(
       []() { return spotify_manager->current_state.volume_change_counter > 0; },
       volume_arc_local, volume_arc_remote);
-  auto volume_arc_bg = new graphics::ArcDrawAble(IMAGE_WIDTH + 40, 35, 20, 4,
+  auto volume_arc_bg = new graphics::ArcDrawAble(IMAGE_WIDTH + 40, 35, 20, 2,
                                                  const_val, 3, 30, text_color);
 
   progress_group->add_child(progress_background);
@@ -223,7 +226,9 @@ void initialize_graphics_objects() {
 
   graphics_manager->add_to_base(init_group);
 
-  graphics_manager->register_event(NEW_SONG, track_group);
+  // Register Events
+  graphics_manager->register_event(NEW_SONG, track_text);
+  graphics_manager->register_event(NEW_SONG, artist_text);
   graphics_manager->register_event(NEW_IMAGE, image_group);
   graphics_manager->register_event(STATUS_CHANGED, main_cond);
   graphics_manager->register_event(PROGRESS_ADVANCE, progress_arc);

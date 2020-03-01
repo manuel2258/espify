@@ -117,8 +117,9 @@ void SpotifyManager::request_update_local_track() {
             char *track_name =
                 cJSON_GetObjectItem(item_json, "name")->valuestring;
 
-            if (current_state.track.track_name != nullptr) {
-              if (strcmp(track_name, current_state.track.track_name) == 0) {
+            if (current_state.track.track_name.text != nullptr) {
+              if (strcmp(track_name, current_state.track.track_name.text) ==
+                  0) {
                 ESP_LOGI(LOG_TAG, "Updated local player, still same track");
                 return;
               }
@@ -127,14 +128,15 @@ void SpotifyManager::request_update_local_track() {
             size_t str_len = strlen(track_name);
 
             // Delete old buffer
-            if (current_state.track.track_name != nullptr) {
-              delete[] current_state.track.track_name;
+            if (current_state.track.track_name.text != nullptr) {
+              delete[] current_state.track.track_name.text;
             }
 
             // Then create new one and copy char array into it
-            current_state.track.track_name = new char[str_len + 1];
+            current_state.track.track_name.text = new char[str_len + 1];
             std::copy(track_name, track_name + str_len + 1,
-                      current_state.track.track_name);
+                      current_state.track.track_name.text);
+            current_state.track.track_name.id++;
 
             // Parse artist
             const cJSON *artists_json =
@@ -145,17 +147,18 @@ void SpotifyManager::request_update_local_track() {
 
             str_len = strlen(artist_name);
 
-            if (current_state.track.artist_name != nullptr) {
-              delete[] current_state.track.artist_name;
+            if (current_state.track.artist_name.text != nullptr) {
+              delete[] current_state.track.artist_name.text;
             }
 
-            current_state.track.artist_name = new char[str_len + 1];
+            current_state.track.artist_name.text = new char[str_len + 1];
             std::copy(artist_name, artist_name + str_len + 1,
-                      current_state.track.artist_name);
+                      current_state.track.artist_name.text);
+            current_state.track.artist_name.id++;
 
             ESP_LOGI(LOG_TAG, "Updated local player, new Track: %s->%s",
-                     current_state.track.artist_name,
-                     current_state.track.track_name);
+                     current_state.track.artist_name.text,
+                     current_state.track.track_name.text);
 
             xEventGroupSetBits(graphics_events_handle, NEW_SONG);
 
@@ -212,6 +215,20 @@ void SpotifyManager::request_update_local_volume() {
                 current_state.volume =
                     cJSON_GetObjectItem(device, "volume_percent")->valueint;
                 current_state.local_volume = current_state.volume;
+
+                char *device_id =
+                    cJSON_GetObjectItem(device, "id")->valuestring;
+
+                auto str_len = strlen(device_id);
+
+                if (current_state.device_id != nullptr) {
+                  delete[] current_state.device_id;
+                }
+
+                current_state.device_id = new char[str_len + 1];
+                std::copy(device_id, device_id + str_len + 1,
+                          current_state.device_id);
+
                 ESP_LOGI(LOG_TAG, "Got new volume: %u", current_state.volume);
                 xEventGroupSetBits(graphics_events_handle, VOLUME_CHANGED);
               }
@@ -270,20 +287,24 @@ void SpotifyManager::request_toggle_playback() {
         "api.spotify.com", "/v1/me/player/pause", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = false;
-          request_update_local_track();
         },
-        false);
+        true);
   } else {
     request_data = new network::Request(
         "api.spotify.com", "/v1/me/player/play", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = true;
-          request_update_local_track();
         },
         false);
   }
   request_data->add_header_data(
       network::KeyValuePair("Authorization", "Bearer " + access_token));
+
+  if (current_state.device_id != nullptr) {
+    request_data->add_query_data(
+        network::KeyValuePair("device_id", current_state.device_id));
+  }
+
   https_requester->add_request_to_queue(request_data);
 }
 
@@ -291,13 +312,18 @@ void SpotifyManager::request_set_volume() {
   network::Request *request_data = new network::Request(
       "api.spotify.com", "/v1/me/player/volume", "PUT",
       [this](network::Response *response_data) {
-        request_update_local_volume();
+        current_state.volume = current_state.local_volume;
       },
       false);
   request_data->add_header_data(
       network::KeyValuePair("Authorization", "Bearer " + access_token));
   request_data->add_query_data(network::KeyValuePair(
       "volume_percent", std::to_string(current_state.local_volume)));
+
+  if (current_state.device_id != nullptr) {
+    request_data->add_query_data(
+        network::KeyValuePair("device_id", current_state.device_id));
+  }
 
   https_requester->add_request_to_queue(request_data);
 }
@@ -309,9 +335,17 @@ void SpotifyManager::request_next_track() {
   }
   network::Request *request_data = new network::Request(
       "api.spotify.com", "/v1/me/player/next", "POST",
-      [this](network::Response *response_data) {}, false);
+      [this](network::Response *response_data) {
+        request_update_local_track();
+      },
+      false);
   request_data->add_header_data(
       network::KeyValuePair("Authorization", "Bearer " + access_token));
+
+  if (current_state.device_id != nullptr) {
+    request_data->add_query_data(
+        network::KeyValuePair("device_id", current_state.device_id));
+  }
 
   https_requester->add_request_to_queue(request_data);
 }
@@ -323,9 +357,17 @@ void SpotifyManager::request_previous_track() {
   }
   network::Request *request_data = new network::Request(
       "api.spotify.com", "/v1/me/player/previous", "POST",
-      [this](network::Response *response_data) {}, true);
+      [this](network::Response *response_data) {
+        request_update_local_track();
+      },
+      true);
   request_data->add_header_data(
       network::KeyValuePair("Authorization", "Bearer " + access_token));
+
+  if (current_state.device_id != nullptr) {
+    request_data->add_query_data(
+        network::KeyValuePair("device_id", current_state.device_id));
+  }
 
   https_requester->add_request_to_queue(request_data);
 }

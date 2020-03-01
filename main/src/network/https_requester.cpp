@@ -151,9 +151,7 @@ Response *HttpsRequester::make_request(Request *request_data) {
     }
   } while (written_bytes < strlen(send_data));
 
-  bool read_result = request_data->is_read_result();
-
-  if (read_result) {
+  if (request_data->is_read_result()) {
     std::string data;
     bool connection_alive = true;
 

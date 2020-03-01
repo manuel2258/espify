@@ -3,11 +3,13 @@
 
 #include <string>
 
+#include "../graphics/graphics_types.h"
+
 namespace spotify {
 
 struct Track {
-  char *track_name = nullptr;
-  char *artist_name = nullptr;
+  graphics::DynamicText track_name = {};
+  graphics::DynamicText artist_name = {};
 
   uint8_t *image_buf = nullptr;
   int buf_size;
@@ -28,6 +30,8 @@ struct SpotifyState {
   uint8_t local_volume = 0;
 
   uint8_t volume_change_counter = 0;
+
+  char *device_id = nullptr;
 };
 
 } // namespace spotify

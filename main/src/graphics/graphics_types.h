@@ -15,6 +15,11 @@
  */
 namespace graphics {
 
+struct DynamicText {
+  char *text = nullptr;
+  uint32_t id = 0;
+};
+
 /**
  * @brief Simple interface for drawables.
  */
@@ -81,14 +86,32 @@ public:
 class TextPtrDrawAble : public PositionedDrawAble {
 protected:
   color_t *color;
+  color_t *bg_color;
   uint8_t font;
-  char **text_buf;
+  uint8_t width;
+  DynamicText *text;
+
+  uint8_t text_height;
+  bool update_registered;
+  bool dynamic;
+  bool initial_drawn;
+
+  uint32_t last_id;
+
+  char *cur_text;
+
+  uint8_t offset;
+  uint8_t length;
 
 public:
-  TextPtrDrawAble(uint8_t n_x, uint8_t n_y, color_t *n_color, uint8_t n_font,
-                  char **buf_adr_ptr)
-      : PositionedDrawAble(n_x, n_y), color(n_color), font(n_font),
-        text_buf(buf_adr_ptr) {}
+  TextPtrDrawAble(uint8_t n_x, uint8_t n_y, color_t *n_color,
+                  color_t *n_bg_color, uint8_t n_font, uint8_t n_width,
+                  DynamicText *dynamic_text)
+      : PositionedDrawAble(n_x, n_y), color(n_color), bg_color(n_bg_color),
+        font(n_font), width(n_width), text(dynamic_text) {
+    TFT_setFont(font, NULL);
+    text_height = TFT_getfontheight();
+  }
 
   virtual ~TextPtrDrawAble() = default;
 
@@ -129,14 +152,14 @@ private:
   int *buf_size;
 
 public:
-  JpegBufferDrawAble(uitext_y, uint8_t **buf_adr_ptr,
-                     intext
-      : PositionedDrawAtext_buf(buf_adr_ptr),
-        buf_size(buf_sitext
+  JpegBufferDrawAble(uint8_t n_x, uint8_t n_y, uint8_t **buf_adr_ptr,
+                     int *buf_size)
+      : PositionedDrawAble(n_x, n_y), image_buf(buf_adr_ptr),
+        buf_size(buf_size) {}
 
-  virtual ~JpegBufferDrtext
+  virtual ~JpegBufferDrawAble() = default;
 
-  void draw() override;text
+  void draw() override;
 };
 
 /**

@@ -1,5 +1,7 @@
 #include "graphics_manager.h"
 
+#include <algorithm>
+
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
@@ -87,7 +89,7 @@ void GraphicsManager::update() {
 }
 
 void GraphicsManager::register_event(EventBits_t mask, IDrawAble *draw_able) {
-  full_mask = full_mask | mask;
+  full_mask |= mask;
 
   auto element = event_map.find(mask);
   if (element != event_map.end()) {
@@ -96,6 +98,24 @@ void GraphicsManager::register_event(EventBits_t mask, IDrawAble *draw_able) {
     std::vector<IDrawAble *> new_map;
     new_map.push_back(draw_able);
     event_map.insert({mask, std::move(new_map)});
+  }
+}
+
+void GraphicsManager::unregister_event(EventBits_t mask, IDrawAble *draw_able) {
+  auto element = event_map.find(mask);
+  if (element != event_map.end()) {
+    auto vec = element->second;
+    vec.erase(std::find(vec.begin(), vec.end(), draw_able));
+    if (vec.empty()) {
+      event_map.erase(mask);
+
+      full_mask = 0;
+      for (auto event : event_map) {
+        full_mask |= event.first;
+      }
+    }
+  } else {
+    ESP_LOGE(LOG_TAG, "Can't unregister non registered event!");
   }
 }
 

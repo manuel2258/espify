@@ -7,5 +7,6 @@
 #define NEW_IMAGE BIT3
 #define STATUS_CHANGED BIT4
 #define VOLUME_CHANGED BIT5
+#define SECOND_OVER BIT6
 
 #endif
