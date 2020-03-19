@@ -1,3 +1,4 @@
 /build/
 /src/spotify_auth.h
 /sdkconfig
+/.vscode/*
