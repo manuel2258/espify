@@ -70,7 +70,7 @@ GraphicsManager::GraphicsManager() {
   register_event(FULL_REDRAW, &base_group);
 }
 
-void GraphicsManager::add_to_base(IDrawAble *draw_able) {
+void GraphicsManager::add_to_base(BaseDrawAble *draw_able) {
   base_group.add_child(draw_able);
 }
 
@@ -88,20 +88,22 @@ void GraphicsManager::update() {
   }
 }
 
-void GraphicsManager::register_event(EventBits_t mask, IDrawAble *draw_able) {
+void GraphicsManager::register_event(EventBits_t mask,
+                                     BaseDrawAble *draw_able) {
   full_mask |= mask;
 
   auto element = event_map.find(mask);
   if (element != event_map.end()) {
     element->second.push_back(draw_able);
   } else {
-    std::vector<IDrawAble *> new_map;
+    std::vector<BaseDrawAble *> new_map;
     new_map.push_back(draw_able);
     event_map.insert({mask, std::move(new_map)});
   }
 }
 
-void GraphicsManager::unregister_event(EventBits_t mask, IDrawAble *draw_able) {
+void GraphicsManager::unregister_event(EventBits_t mask,
+                                       BaseDrawAble *draw_able) {
   auto element = event_map.find(mask);
   if (element != event_map.end()) {
     auto vec = element->second;

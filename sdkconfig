@@ -115,12 +115,11 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
-# Example Configuration
+# ESPIFY Configuration
 #
 CONFIG_ESP_WIFI_SSID="TP-LINK_2.4GHz_B1FADE"
 CONFIG_ESP_WIFI_PASSWORD="91979903"
-CONFIG_ESP_MAXIMUM_RETRY=5
-# end of Example Configuration
+# end of ESPIFY Configuration
 
 #
 # Compiler options

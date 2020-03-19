@@ -19,7 +19,7 @@ class GraphicsManager {
 private:
   const char *LOG_TAG = "GraphicsManager";
 
-  std::unordered_map<EventBits_t, std::vector<IDrawAble *>> event_map;
+  std::unordered_map<EventBits_t, std::vector<BaseDrawAble *>> event_map;
 
   EventBits_t full_mask = 0;
 
@@ -31,7 +31,7 @@ public:
   /**
    * @brief Adds a drawable to the base drawable group
    */
-  void add_to_base(IDrawAble *draw_able);
+  void add_to_base(BaseDrawAble *draw_able);
 
   /**
    * @brief Draws all current added drawables.
@@ -49,7 +49,7 @@ public:
    * @param mask The to trigger at mask.
    * @param draw_able The to draw drawable.
    */
-  void register_event(EventBits_t mask, IDrawAble *draw_able);
+  void register_event(EventBits_t mask, BaseDrawAble *draw_able);
 
   /**
    * @brief Removes a Event.
@@ -57,7 +57,7 @@ public:
    * @param mask
    * @param draw_able
    */
-  void unregister_event(EventBits_t mask, IDrawAble *draw_able);
+  void unregister_event(EventBits_t mask, BaseDrawAble *draw_able);
 };
 
 } // namespace graphics

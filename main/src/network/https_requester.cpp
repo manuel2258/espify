@@ -16,7 +16,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
   https_requester->event_handler(arg, event_base, event_id, event_data);
 }
 
-static int s_retry_num = 0;
+static int s_retry_num = 5;
 
 void HttpsRequester::event_handler(void *arg, esp_event_base_t event_base,
                                    int32_t event_id, void *event_data) {
@@ -26,22 +26,22 @@ void HttpsRequester::event_handler(void *arg, esp_event_base_t event_base,
              event_id == WIFI_EVENT_STA_DISCONNECTED) {
     connected = false;
     xEventGroupSetBits(graphics_events_handle, STATUS_CHANGED);
-    if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+    if (s_retry_num >= 0) {
       esp_wifi_connect();
-      s_retry_num++;
+      s_retry_num--;
       ESP_LOGI(LOG_TAG, "retry to connect to the AP");
     }
     ESP_LOGE(LOG_TAG, "connect to the AP fail");
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGI(LOG_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-    s_retry_num = 0;
     connected = true;
     xEventGroupSetBits(graphics_events_handle, STATUS_CHANGED);
   } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
     wifi_event_sta_connected_t *event =
         (wifi_event_sta_connected_t *)event_data;
     ESP_LOGI(LOG_TAG, "Connected to: %s", (char *)event->ssid);
+    s_retry_num = 5;
   }
 }
 

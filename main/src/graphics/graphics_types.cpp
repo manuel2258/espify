@@ -15,7 +15,7 @@ DrawGroup::~DrawGroup() {
   }
 }
 
-void DrawGroup::add_child(IDrawAble *child) { children.push_back(child); }
+void DrawGroup::add_child(BaseDrawAble *child) { children.push_back(child); }
 
 void DrawGroup::draw() {
   for (auto child : children) {
@@ -23,7 +23,16 @@ void DrawGroup::draw() {
   }
 }
 
+void DrawGroup::set_active(bool n_active) {
+  active = n_active;
+  for (auto child : children) {
+    child->set_active(n_active);
+  }
+}
+
 void RectangleDrawAble::draw() {
+  if (!active)
+    return;
   if (fill) {
     TFT_fillRect(x, y, width, height, *color);
   } else {
@@ -32,6 +41,8 @@ void RectangleDrawAble::draw() {
 }
 
 void TextPtrDrawAble::draw() {
+  if (!active)
+    return;
   if (text->text != nullptr) {
     if (last_id != text->id) {
       last_id = text->id;
@@ -63,7 +74,7 @@ void TextPtrDrawAble::draw() {
 
     if (dynamic || !initial_drawn) {
       initial_drawn = true;
-      TFT_fillRect(x, y, width + 5, text_height, *bg_color);
+      TFT_fillRect(x, y, width + 15, text_height, *bg_color);
 
       tft_fg = *color;
       TFT_setFont(font, NULL);
@@ -78,6 +89,8 @@ void TextPtrDrawAble::draw() {
 }
 
 void TextDrawAble::draw() {
+  if (!active)
+    return;
   tft_fg = *color;
   TFT_setFont(font, NULL);
   TFT_print(text, x, y);
@@ -86,24 +99,35 @@ void TextDrawAble::draw() {
 TextDrawAble::~TextDrawAble() { delete[] text; }
 
 void JpegBufferDrawAble::draw() {
+  if (!active)
+    return;
   if (*image_buf != nullptr) {
-    TFT_jpg_image(x, y, 0, NULL, *image_buf, *buf_size);
+    TFT_jpg_image(x, y, scale, NULL, *image_buf, *buf_size);
   }
 }
 
-void BmpPathDrawAble::draw() { TFT_bmp_image(x, y, 0, bmp_path, NULL, 0); }
+void BmpPathDrawAble::draw() {
+  if (!active)
+    return;
+  TFT_bmp_image(x, y, 0, bmp_path, NULL, 0);
+}
 
 BmpPathDrawAble::~BmpPathDrawAble() { delete[] bmp_path; }
 
 void ConditionalDrawAble::draw() {
-  if (condition()) {
-    if (true_drawable != nullptr) {
-      true_drawable->draw();
-    }
-  } else {
-    if (false_drawable != nullptr) {
-      false_drawable->draw();
-    }
+  if (!active)
+    return;
+
+  bool cond = condition();
+  auto active_draw = cond ? true_drawable : false_drawable;
+  auto nactive_draw = !cond ? true_drawable : false_drawable;
+
+  if (nactive_draw != nullptr) {
+    nactive_draw->set_active(false);
+  }
+  if (active_draw != nullptr) {
+    active_draw->set_active(true);
+    active_draw->draw();
   }
 }
 
@@ -117,10 +141,17 @@ ConditionalDrawAble::~ConditionalDrawAble() {
 }
 
 void ArcDrawAble::draw() {
+  if (!active)
+    return;
   TFT_drawArc(x, y, r, line_width, start, start + *value_ptr * value_scale,
               *color, *color);
 }
 
-void LineDrawAble::draw() { TFT_drawLine(x, y, x + length, y, *color); }
+void LineDrawAble::draw() {
+  if (!active)
+    return;
+  TFT_drawLine(x, y, x + scale * int(*length), y, *color);
+  TFT_drawLine(x, y - 1, x + scale * int(*length), y - 1, *color);
+}
 
 } // namespace graphics

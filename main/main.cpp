@@ -15,20 +15,9 @@
 
 #include "src/spotify/spotify_manager.h"
 
-#define ESPIFY_VERSION_TEXT "V0.1"
+#define ESPIFY_VERSION_TEXT "V1.0"
 
-#define SCREEN_WIDTH 160
-#define SCREEN_HEIGHT 128
-#define TRACK_HEIGHT 50
-#define IMAGE_WIDTH 75
-
-std::string CLIENT_ID = "e0fabf234d944aeba88bee39c39abc9f";
-std::string CLIENT_SECRET = "fbe969d7f3c544dda1f607d129577017";
-
-std::string REFRESH_TOKEN =
-    "AQDzN3UESuB3G7RnIzM1-BrBpVd9Zc_"
-    "XSlCo6Romsf7qZd58aDngQs3sUC5kbOgMNMVblNMQGzjiGEfHEQramwJiEMgN0SUMFmDIsY-"
-    "i1KCxX9VJ-48aM3FTKknYYQSzegLm3A";
+#include "spotify_auth.h"
 
 QueueHandle_t buttons_queue;
 
@@ -83,6 +72,11 @@ void graphics_update(void *pv_pars) {
   }
 }
 
+#define SCREEN_HEIGHT 128
+#define SCREEN_WIDTH 160
+#define TRACK_HEIGHT 50
+#define IMAGE_WIDTH 64
+
 void initialize_graphics_objects() {
   // Initializes colors
   auto green_color = new color_t{0, 150, 0};
@@ -92,9 +86,6 @@ void initialize_graphics_objects() {
 
   // Lower Trackgroup
   auto track_group = new graphics::DrawGroup();
-  auto track_background = new graphics::RectangleDrawAble(
-      0, SCREEN_HEIGHT - TRACK_HEIGHT, SCREEN_WIDTH, TRACK_HEIGHT, bg_color,
-      true);
 
   auto track_text = new graphics::TextPtrDrawAble(
       7, SCREEN_HEIGHT - 40, text_color, bg_color, DEFAULT_FONT,
@@ -103,56 +94,47 @@ void initialize_graphics_objects() {
       7, SCREEN_HEIGHT - 20, green_color, bg_color, DEFAULT_FONT,
       SCREEN_WIDTH - 14, &spotify_manager->current_state.track.artist_name);
 
-  auto line = new graphics::LineDrawAble(5, SCREEN_HEIGHT - TRACK_HEIGHT,
-                                         SCREEN_WIDTH - 10, green_color);
-
-  track_group->add_child(track_background);
-  track_group->add_child(line);
   track_group->add_child(track_text);
   track_group->add_child(artist_text);
 
-  // Left Imagegroup
-  auto image_group = new graphics::DrawGroup();
-  auto image_background = new graphics::RectangleDrawAble(
-      0, 0, IMAGE_WIDTH, SCREEN_HEIGHT - TRACK_HEIGHT, bg_color, true);
-
+  // Left Image
   auto image_jpeg = new graphics::JpegBufferDrawAble(
       5, 5, &spotify_manager->current_state.track.image_buf,
-      &spotify_manager->current_state.track.buf_size);
-
-  image_group->add_child(image_background);
-  image_group->add_child(image_jpeg);
+      &spotify_manager->current_state.track.buf_size, 0);
 
   // Right Progressgroup
-  auto progress_group = new graphics::DrawGroup();
-  auto progress_background = new graphics::RectangleDrawAble(
-      IMAGE_WIDTH, 0, SCREEN_WIDTH - IMAGE_WIDTH, SCREEN_HEIGHT - TRACK_HEIGHT,
-      bg_color, true);
+  auto playback_group = new graphics::DrawGroup();
   uint8_t *const_val = new uint8_t(100);
 
-  auto progress_arc = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 32, 3,
-      &spotify_manager->current_state.track.progress, 3, 30, green_color);
-  auto progress_arc_bg = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 32, 3, const_val, 3, 30, text_color);
+  auto progress_line = new graphics::LineDrawAble(
+      5, SCREEN_HEIGHT - TRACK_HEIGHT,
+      &spotify_manager->current_state.track.progress, 1.47, green_color);
+
+  auto progress_line_bg = new graphics::LineDrawAble(
+      5, SCREEN_HEIGHT - TRACK_HEIGHT, const_val, 1.47, text_color);
 
   auto volume_arc_remote = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 20, 2, &spotify_manager->current_state.volume, 3,
+      IMAGE_WIDTH + 47, 35, 30, 3, &spotify_manager->current_state.volume, 3,
       30, green_color);
   auto volume_arc_local = new graphics::ArcDrawAble(
-      IMAGE_WIDTH + 40, 35, 20, 2, &spotify_manager->current_state.local_volume,
+      IMAGE_WIDTH + 47, 35, 30, 3, &spotify_manager->current_state.local_volume,
       3, 30, red_color);
   auto volume_local_cond = new graphics::ConditionalDrawAble(
       []() { return spotify_manager->current_state.volume_change_counter > 0; },
       volume_arc_local, volume_arc_remote);
-  auto volume_arc_bg = new graphics::ArcDrawAble(IMAGE_WIDTH + 40, 35, 20, 2,
+  auto volume_arc_bg = new graphics::ArcDrawAble(IMAGE_WIDTH + 47, 35, 30, 3,
                                                  const_val, 3, 30, text_color);
 
-  progress_group->add_child(progress_background);
-  progress_group->add_child(progress_arc_bg);
-  progress_group->add_child(progress_arc);
-  progress_group->add_child(volume_arc_bg);
-  progress_group->add_child(volume_local_cond);
+  auto isplaying_cond = new graphics::ConditionalDrawAble(
+      []() { return spotify_manager->current_state.is_playing; },
+      new graphics::BmpPathDrawAble(IMAGE_WIDTH + 32, 20, "/spiffs/play.bmp"),
+      new graphics::BmpPathDrawAble(IMAGE_WIDTH + 32, 20, "/spiffs/pause.bmp"));
+
+  playback_group->add_child(progress_line);
+  playback_group->add_child(progress_line_bg);
+  playback_group->add_child(volume_arc_bg);
+  playback_group->add_child(volume_local_cond);
+  playback_group->add_child(isplaying_cond);
 
   // Init Screengroup
   auto init_group = new graphics::DrawGroup();
@@ -168,7 +150,7 @@ void initialize_graphics_objects() {
   char version_text[] = ESPIFY_VERSION_TEXT;
   TFT_setFont(DEFAULT_FONT, NULL);
   auto init_version = new graphics::TextDrawAble(
-      SCREEN_WIDTH / 2 - TFT_getStringWidth(version_text) / 2, 40, text_color,
+      SCREEN_WIDTH / 2 - TFT_getStringWidth(version_text) / 2, 42, text_color,
       DEFAULT_FONT, version_text);
 
   TFT_setFont(DEJAVU18_FONT, NULL);
@@ -176,13 +158,13 @@ void initialize_graphics_objects() {
   char wifi_text[] = "WiFi";
 
   auto init_wifi = new graphics::TextDrawAble(
-      SCREEN_WIDTH / 2 - TFT_getStringWidth(wifi_text) / 2 - 15, 60, text_color,
+      SCREEN_WIDTH / 2 - TFT_getStringWidth(wifi_text) / 2 - 15, 63, text_color,
       DEJAVU18_FONT, wifi_text);
 
   auto init_wifi_img_err =
-      new graphics::BmpPathDrawAble(110, 52, "/spiffs/err.bmp");
+      new graphics::BmpPathDrawAble(110, 54, "/spiffs/err.bmp");
   auto init_wifi_img_ok =
-      new graphics::BmpPathDrawAble(110, 52, "/spiffs/ok.bmp");
+      new graphics::BmpPathDrawAble(110, 54, "/spiffs/ok.bmp");
 
   auto init_wifi_cond = new graphics::ConditionalDrawAble(
       []() { return https_requester->connected; }, init_wifi_img_ok,
@@ -212,6 +194,8 @@ void initialize_graphics_objects() {
   init_group->add_child(init_spotify_cond);
 
   auto active_group = new graphics::DrawGroup();
+  auto active_background = new graphics::RectangleDrawAble(
+      0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, bg_color, true);
 
   auto main_cond = new graphics::ConditionalDrawAble(
       []() {
@@ -220,21 +204,23 @@ void initialize_graphics_objects() {
       },
       active_group, init_group);
 
+  active_group->add_child(active_background);
   active_group->add_child(track_group);
-  active_group->add_child(image_group);
-  active_group->add_child(progress_group);
+  active_group->add_child(image_jpeg);
+  active_group->add_child(playback_group);
 
   graphics_manager->add_to_base(init_group);
 
   // Register Events
   graphics_manager->register_event(NEW_SONG, track_text);
   graphics_manager->register_event(NEW_SONG, artist_text);
-  graphics_manager->register_event(NEW_IMAGE, image_group);
+  graphics_manager->register_event(NEW_IMAGE, image_jpeg);
   graphics_manager->register_event(STATUS_CHANGED, main_cond);
-  graphics_manager->register_event(PROGRESS_ADVANCE, progress_arc);
-  graphics_manager->register_event(NEW_SONG, progress_arc_bg);
+  graphics_manager->register_event(PROGRESS_ADVANCE, progress_line);
+  graphics_manager->register_event(NEW_SONG, progress_line_bg);
   graphics_manager->register_event(VOLUME_CHANGED, volume_arc_bg);
   graphics_manager->register_event(VOLUME_CHANGED, volume_local_cond);
+  graphics_manager->register_event(PLAYBACK_CHANGED, isplaying_cond);
 
   graphics_manager->draw_all();
 }

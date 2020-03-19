@@ -21,32 +21,37 @@ struct DynamicText {
 };
 
 /**
- * @brief Simple interface for drawables.
+ * @brief Simple base for drawables.
  */
-class IDrawAble {
+class BaseDrawAble {
+protected:
+  bool active = true;
+
 public:
+  virtual void set_active(bool n_active) { active = n_active; }
   virtual void draw();
-  virtual ~IDrawAble() = default;
+  virtual ~BaseDrawAble() = default;
 };
 
 /**
  * @brief A group of drawables.
  */
-class DrawGroup : public IDrawAble {
+class DrawGroup : public BaseDrawAble {
 private:
-  std::vector<IDrawAble *> children;
+  std::vector<BaseDrawAble *> children;
 
 public:
   virtual ~DrawGroup();
-  void add_child(IDrawAble *child);
+  void add_child(BaseDrawAble *child);
 
   void draw() override;
+  void set_active(bool) override;
 };
 
 /**
  * @brief A abstract positioned drawable.
  */
-class PositionedDrawAble : public IDrawAble {
+class PositionedDrawAble : public BaseDrawAble {
 protected:
   uint8_t x;
   uint8_t y;
@@ -150,12 +155,13 @@ class JpegBufferDrawAble : public PositionedDrawAble {
 private:
   uint8_t **image_buf;
   int *buf_size;
+  uint8_t scale;
 
 public:
   JpegBufferDrawAble(uint8_t n_x, uint8_t n_y, uint8_t **buf_adr_ptr,
-                     int *buf_size)
+                     int *buf_size, uint8_t n_scale)
       : PositionedDrawAble(n_x, n_y), image_buf(buf_adr_ptr),
-        buf_size(buf_size) {}
+        buf_size(buf_size), scale(n_scale) {}
 
   virtual ~JpegBufferDrawAble() = default;
 
@@ -187,16 +193,16 @@ public:
  * @brief A dynamic condition based drawable.
  * Has two childs which will be either drawn based on the condition.
  */
-class ConditionalDrawAble : public IDrawAble {
+class ConditionalDrawAble : public BaseDrawAble {
 private:
   std::function<bool()> condition;
 
-  IDrawAble *true_drawable = nullptr;
-  IDrawAble *false_drawable = nullptr;
+  BaseDrawAble *true_drawable = nullptr;
+  BaseDrawAble *false_drawable = nullptr;
 
 public:
-  ConditionalDrawAble(std::function<bool()> cond_func, IDrawAble *on_true,
-                      IDrawAble *on_false)
+  ConditionalDrawAble(std::function<bool()> cond_func, BaseDrawAble *on_true,
+                      BaseDrawAble *on_false)
       : condition(cond_func), true_drawable(on_true), false_drawable(on_false) {
   }
 
@@ -236,18 +242,21 @@ public:
 };
 
 /**
- * @brief A static horizontal line.
- * Draws a static horitontal line given its position and length.
+ * @brief A dynamic horizontal line.
+ * Draws a dynamic horitontal line given its position and length.
  */
 class LineDrawAble : public PositionedDrawAble {
 private:
-  uint16_t length;
+  uint8_t *length;
+  float scale;
 
   color_t *color;
 
 public:
-  LineDrawAble(uint8_t n_x, uint8_t n_y, uint16_t n_length, color_t *n_color)
-      : PositionedDrawAble(n_x, n_y), length(n_length), color(n_color) {}
+  LineDrawAble(uint8_t n_x, uint8_t n_y, uint8_t *n_length, float n_scale,
+               color_t *n_color)
+      : PositionedDrawAble(n_x, n_y), length(n_length), scale(n_scale),
+        color(n_color) {}
 
   virtual ~LineDrawAble() = default;
 

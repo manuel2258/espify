@@ -96,6 +96,7 @@ void SpotifyManager::request_update_local_track() {
             // Parse is playing
             current_state.is_playing =
                 cJSON_IsTrue(cJSON_GetObjectItem(body_json, "is_playing"));
+            xEventGroupSetBits(graphics_events_handle, PLAYBACK_CHANGED);
 
             if (!current_state.is_playing) {
               return;
@@ -287,6 +288,7 @@ void SpotifyManager::request_toggle_playback() {
         "api.spotify.com", "/v1/me/player/pause", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = false;
+          xEventGroupSetBits(graphics_events_handle, PLAYBACK_CHANGED);
         },
         true);
   } else {
@@ -294,6 +296,7 @@ void SpotifyManager::request_toggle_playback() {
         "api.spotify.com", "/v1/me/player/play", "PUT",
         [this](network::Response *response_data) {
           current_state.is_playing = true;
+          xEventGroupSetBits(graphics_events_handle, PLAYBACK_CHANGED);
         },
         false);
   }
