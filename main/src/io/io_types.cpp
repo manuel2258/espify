@@ -33,23 +33,4 @@ void ButtonInput::on_pin_down() {
   }
 }
 
-RotaryInput::RotaryInput(gpio_num_t a, gpio_num_t b,
-                         std::function<void(int8_t dir)> callback)
-    : pin_a(a), pin_b(b), call_back(callback) {
-  rotary_encoder_info_t *info = new rotary_encoder_info_t();
-  ESP_ERROR_CHECK(rotary_encoder_init(info, pin_a, pin_b));
-  // ESP_ERROR_CHECK(rotary_encoder_enable_half_steps(&info, true));
-
-  queue_handle = rotary_encoder_create_queue();
-  ESP_ERROR_CHECK(rotary_encoder_set_queue(info, queue_handle));
-}
-
-void RotaryInput::check_queue() {
-  rotary_encoder_event_t event;
-  if (xQueueReceive(queue_handle, &event, 0)) {
-    call_back(event.state.direction == ROTARY_ENCODER_DIRECTION_CLOCKWISE ? 1
-                                                                          : -1);
-  }
-}
-
 } // namespace io

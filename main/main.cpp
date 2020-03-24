@@ -17,7 +17,7 @@
 
 #define ESPIFY_VERSION_TEXT "V1.0"
 
-#include "spotify_auth.h"
+#include "config.h"
 
 QueueHandle_t buttons_queue;
 
@@ -258,7 +258,7 @@ extern "C" void app_main(void) {
   // --- Create Tasks ---
 
   xTaskCreate(&main_update, "main_update", 8192, NULL, 5, NULL);
-  xTaskCreate(&https_requester_update, "https_update", 4096, NULL, 5, NULL);
+  xTaskCreate(&https_requester_update, "https_update", 8192, NULL, 5, NULL);
   xTaskCreate(&spotify_update, "spotify_update", 3072, NULL, 5, NULL);
   xTaskCreate(&graphics_update, "graphics_update", 2048, NULL, 5, NULL);
 }

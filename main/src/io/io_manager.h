@@ -17,14 +17,12 @@ namespace io {
 class IOManager {
 private:
   std::vector<io::ButtonInput *> buttons;
-  std::vector<io::RotaryInput *> rotarys;
 
 public:
   IOManager();
   ~IOManager();
 
   void add_button(io::ButtonInput *i);
-  void add_rotary(io::RotaryInput *i);
 
   /**
    * @brief Function to query events.

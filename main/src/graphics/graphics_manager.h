@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "FreeRTOS.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
 #include "graphics_types.h"

@@ -11,9 +11,7 @@
 
 #include "../graphics/graphics_events.h"
 
-extern std::string CLIENT_ID;
-extern std::string CLIENT_SECRET;
-extern std::string REFRESH_TOKEN;
+#include "../../config.h"
 
 extern network::HttpsRequester *https_requester;
 extern EventGroupHandle_t graphics_events_handle;

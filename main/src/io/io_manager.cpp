@@ -11,18 +11,12 @@ io::IOManager::~IOManager() {
   for (auto button : buttons) {
     delete button;
   }
-  for (auto rotary : rotarys) {
-    delete rotary;
-  }
 }
 
 void io::IOManager::add_button(io::ButtonInput *button) {
   buttons.push_back(button);
 }
 
-void io::IOManager::add_rotary(io::RotaryInput *rotary) {
-  rotarys.push_back(rotary);
-}
 
 void io::IOManager::update() {
   uint32_t triggered_pin;
@@ -33,9 +27,5 @@ void io::IOManager::update() {
         button->on_pin_down();
       }
     }
-  }
-
-  for (auto rotary : rotarys) {
-    rotary->check_queue();
   }
 }
