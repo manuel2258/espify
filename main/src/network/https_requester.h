@@ -24,10 +24,6 @@
 #include "http_types.h"
 #include <queue>
 
-#define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
-#define EXAMPLE_ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
-#define EXAMPLE_ESP_MAXIMUM_RETRY CONFIG_ESP_MAXIMUM_RETRY
-
 #define HTTP_RECEIVE_BUFFER_SIZE 1024
 
 extern const uint8_t
@@ -53,7 +49,7 @@ private:
   std::queue<char *> buffer_pool;
 
   // The settings to connect to the http host.
-  esp_tls_cfg_t *tls_cfg;
+  esp_tls_cfg_t tls_cfg;
 
   /**
    * @brief Makes a request to the given host.

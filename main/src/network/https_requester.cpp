@@ -1,10 +1,11 @@
-
 #include "https_requester.h"
 
-#include "FreeRTOS.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
 #include "../graphics/graphics_events.h"
+
+#include "../../config.h"
 
 extern network::HttpsRequester *https_requester;
 extern EventGroupHandle_t graphics_events_handle;
@@ -49,22 +50,9 @@ HttpsRequester::HttpsRequester() {
   xSemaphoreGive(response_lock);
   xSemaphoreGive(request_lock);
 
-  tls_cfg = new esp_tls_cfg_t;
-  tls_cfg->alpn_protos = new const char *(nullptr);
-  tls_cfg->cacert_buf = server_root_cert_pem_start;
-  tls_cfg->cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start;
-  tls_cfg->clientcert_buf = NULL;
-  tls_cfg->clientcert_bytes = 0;
-  tls_cfg->clientkey_buf = NULL;
-  tls_cfg->clientkey_bytes = 0;
-  tls_cfg->clientkey_password = NULL;
-  tls_cfg->clientkey_password_len = 0;
-  tls_cfg->non_block = false;
-  tls_cfg->timeout_ms = 10000;
-  tls_cfg->use_global_ca_store = false;
-  tls_cfg->common_name = NULL;
-  tls_cfg->skip_common_name = true;
-  tls_cfg->psk_hint_key = NULL;
+  tls_cfg = {};
+  tls_cfg.cacert_buf = server_root_cert_pem_start;
+  tls_cfg.cacert_bytes = server_root_cert_pem_end - server_root_cert_pem_start;
 }
 
 HttpsRequester::~HttpsRequester() {
@@ -93,8 +81,8 @@ void HttpsRequester::initialize_wifi() {
   wifi_scan_threshold_t sta_threshhold = {0, wifi_auth_mode_t::WIFI_AUTH_OPEN};
   wifi_pmf_config_t sta_pmf = {true, false};
 
-  wifi_sta_config_t sta_config = {EXAMPLE_ESP_WIFI_SSID,
-                                  EXAMPLE_ESP_WIFI_PASS,
+  wifi_sta_config_t sta_config = {WIFI_SSID,
+                                  WIFI_PASSWORD,
                                   wifi_scan_method_t::WIFI_ALL_CHANNEL_SCAN,
                                   0,
                                   {0},
@@ -124,7 +112,7 @@ Response *HttpsRequester::make_request(Request *request_data) {
   ESP_LOGI(LOG_TAG, "Connecting to: %s", url_ptr->c_str());
 
   std::unique_ptr<esp_tls_t, std::function<void(esp_tls_t *)>> tls(
-      esp_tls_conn_http_new(url_ptr->c_str(), tls_cfg),
+      esp_tls_conn_http_new(url_ptr->c_str(), &tls_cfg),
       [](esp_tls_t *tls) { esp_tls_conn_delete(tls); });
 
   if (tls.get() == NULL) {
@@ -133,9 +121,8 @@ Response *HttpsRequester::make_request(Request *request_data) {
   }
 
   auto send_ptr = request_data->get_to_send_data();
-  auto send_data = send_ptr->c_str();
 
-  // ESP_LOGI(LOG_TAG, "Sending data: \n%s", send_data);
+  auto send_data = send_ptr->c_str();
 
   size_t written_bytes = 0;
   do {
