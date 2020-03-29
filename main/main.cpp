@@ -19,13 +19,20 @@
 
 #include "config.h"
 
-QueueHandle_t buttons_queue;
+#define NEXT_TRACK_PIN GPIO_NUM_21
+#define TOGGLE_PLAYBACK_PIN GPIO_NUM_19
+#define PREV_TRACK_PIN GPIO_NUM_18
+#define MINUS_VOL_PIN GPIO_NUM_23
+#define SET_VOL_PIN GPIO_NUM_4
+#define PLUS_VOL_PIN GPIO_NUM_15
+#define VOL_CHANGE_AMOUNT 3
 
 network::HttpsRequester *https_requester;
 spotify::SpotifyManager *spotify_manager;
 io::IOManager *io_manager;
 graphics::GraphicsManager *graphics_manager;
 
+QueueHandle_t buttons_queue;
 extern EventGroupHandle_t graphics_events_handle;
 
 void main_update(void *pv_pars) {
@@ -238,22 +245,25 @@ extern "C" void app_main(void) {
 
   // --- Init Inputs ---
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_21, []() { spotify_manager->request_next_track(); }));
+      NEXT_TRACK_PIN, []() { spotify_manager->request_next_track(); }));
+
+  io_manager->add_button(new io::ButtonInput(TOGGLE_PLAYBACK_PIN, []() {
+    spotify_manager->request_toggle_playback();
+  }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_19, []() { spotify_manager->request_toggle_playback(); }));
+      PREV_TRACK_PIN, []() { spotify_manager->request_previous_track(); }));
+
+  io_manager->add_button(new io::ButtonInput(MINUS_VOL_PIN, []() {
+    spotify_manager->change_local_volume(-VOL_CHANGE_AMOUNT);
+  }));
 
   io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_18, []() { spotify_manager->request_previous_track(); }));
+      SET_VOL_PIN, []() { spotify_manager->request_set_volume(); }));
 
-  io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_23, []() { spotify_manager->change_local_volume(-5); }));
-
-  io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_4, []() { spotify_manager->request_set_volume(); }));
-
-  io_manager->add_button(new io::ButtonInput(
-      GPIO_NUM_15, []() { spotify_manager->change_local_volume(+5); }));
+  io_manager->add_button(new io::ButtonInput(PLUS_VOL_PIN, []() {
+    spotify_manager->change_local_volume(+VOL_CHANGE_AMOUNT);
+  }));
 
   // --- Create Tasks ---
 
